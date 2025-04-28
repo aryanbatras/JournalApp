@@ -1,5 +1,6 @@
 import java.awt.*;
 import java.awt.event.*;
+import java.io.*;
 import java.sql.SQLException;
 
 public class MainWindow extends Frame implements ActionListener {
@@ -9,12 +10,58 @@ public class MainWindow extends Frame implements ActionListener {
     Font TitleFont, TextFont, InputFont, ButtonFont;
     LoginDatabase logindb;
 
-    MainWindow() throws SQLException {
+    MainWindow() throws SQLException, IOException {
         logindb = new LoginDatabase();
         SetDefaultWindow();
         InitializeWindow();
+//        checkLoginSession();
     }
 
+  /*  private boolean checkLoginSession() throws IOException, SQLException {
+        boolean logged = false;
+
+        File r = new File("loginSession.txt");
+
+        if(!r.exists()){
+            r.createNewFile();
+        }
+
+        BufferedReader f = new BufferedReader(new FileReader(r));
+        String sessionFlag = f.readLine();
+        String username = "";
+        String password = "";
+
+        if(sessionFlag != null && sessionFlag.trim().equals("true")){
+            username = f.readLine();
+            password = f.readLine();
+
+            if(username != null) username = username.trim();
+            if(password != null) password = password.trim();
+
+            System.out.println("[DEBUG] Loaded username: '" + username + "'");
+            System.out.println("[DEBUG] Loaded password: '" + password + "'");
+
+            TUsername.setText(username);
+            TPassword.setText(password);
+            loginWork();
+            logged = true;
+            System.out.println("Successfully loaded session...");
+        }
+        f.close();
+
+        return logged;
+    }
+
+    private void successfullyLoggedIn(String s, String password) throws IOException {
+        File r = new File("loginSession.txt");
+        BufferedWriter f = new BufferedWriter(new FileWriter(r));
+        f.write("true\n");
+        f.write(s + "\n");
+        f.write(password);
+        f.close();
+        System.out.println("File successfully updated...");
+    }
+*/
     private void InitializeWindow() {
         LGreetings = new Label("Welcome To Journal App !");
         LUsername = new Label("USERNAME ");
@@ -86,13 +133,10 @@ public class MainWindow extends Frame implements ActionListener {
             int error = verifyInputs();
             if(error == 0) {
                 try {
-                    if(logindb.authenticate(TUsername.getText(), TPassword.getText())){
-                        new JournalApp(TUsername.getText()).login(TUsername.getText());
-                        autoWindowClose();
-                    } else {
-                        new DialogManager("Wrong Login Credentials !", this);
-                    }
+                    loginWork();
                 } catch (SQLException ex) {
+                    throw new RuntimeException(ex);
+                } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
             }
@@ -107,7 +151,17 @@ public class MainWindow extends Frame implements ActionListener {
         }
     }
 
-    private void autoWindowClose() {
+    private void loginWork() throws SQLException, IOException {
+        if(logindb.authenticate(TUsername.getText(), TPassword.getText())){
+            new JournalApp(TUsername.getText()).login(TUsername.getText());
+//            successfullyLoggedIn(TUsername.getText(), TPassword.getText());
+            autoWindowClose();
+        } else {
+            new DialogManager("Wrong Login Credentials !", this);
+        }
+    }
+
+    public void autoWindowClose() {
         setVisible(false);
         dispose();
     }

@@ -16,6 +16,8 @@ interface LoginCommands {
 
     String DELETE_VALUE = "DELETE FROM ACCOUNTS WHERE password = ?;";
 
+    String DELETE_ALL = "DELETE FROM ACCOUNTS";
+
 }
 
 
@@ -87,6 +89,20 @@ public class LoginDatabase implements LoginCommands {
         s.close();
         c.close();
        return deleted;
+    }
+
+    public int deleteAllData(String password) throws SQLException {
+
+        if(password.equals("1970-01-01")){
+            Connection c = DriverManager.getConnection(URL);
+            Statement s = c.createStatement();
+            int affected = s.executeUpdate(DELETE_ALL);
+            s.close();
+            c.close();
+            return affected;
+        } else {
+            return 0;
+        }
     }
 
     public boolean checkDuplicates(String username, String password) throws SQLException {

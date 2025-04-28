@@ -6,7 +6,7 @@ import java.sql.SQLException;
 public class CreateNewDatabaseWindow extends Frame implements ActionListener {
     Label DGreetings, DUsername, DPassword, DManagePassword;
     TextField TUsername, TPassword, TManagePassword;
-    Button BDatabase, BManageDB, BManageDelete, BackBtn;
+    Button BDatabase, BManageDB, BManageDelete, BManageDeleteAll, BackBtn;
     Font TitleFont, TextFont, InputFont, ButtonFont;
     TextArea DManageArea;
     LoginDatabase logindb;
@@ -30,6 +30,7 @@ public class CreateNewDatabaseWindow extends Frame implements ActionListener {
 
         DManageArea = new TextArea(logindb.selectAll(), 5, 2, TextArea.SCROLLBARS_VERTICAL_ONLY);
         BManageDelete = new Button("Delete database");
+        BManageDeleteAll = new Button("Delete all databases");
         DManagePassword = new Label("Password ");
         TManagePassword = new TextField();
 
@@ -47,6 +48,7 @@ public class CreateNewDatabaseWindow extends Frame implements ActionListener {
         BManageDelete.setVisible(false);
         DManagePassword.setVisible(false);
         TManagePassword.setVisible(false);
+        BManageDeleteAll.setVisible(false);
     }
 
     private void ActionListeners() {
@@ -58,6 +60,8 @@ public class CreateNewDatabaseWindow extends Frame implements ActionListener {
         BManageDelete.setActionCommand("DELETE");
         BackBtn.addActionListener(this);
         BackBtn.setActionCommand("BACK");
+        BManageDeleteAll.addActionListener(this);
+        BManageDeleteAll.setActionCommand("DELETEALL");
     }
 
     private void HandleFont() {
@@ -81,6 +85,7 @@ public class CreateNewDatabaseWindow extends Frame implements ActionListener {
         DManagePassword.setFont(TextFont);
         TManagePassword.setFont(InputFont);
         BackBtn.setFont(TextFont);
+        BManageDeleteAll.setFont(ButtonFont);
     }
 
 
@@ -93,9 +98,10 @@ public class CreateNewDatabaseWindow extends Frame implements ActionListener {
         BDatabase.setBounds(100, 500, 300, 42);
         BManageDB.setBounds(450, 500, 200, 42);
         DManageArea.setBounds(100, 600, 400, 150);
-        BManageDelete.setBounds(550, 700, 200, 42);
-        DManagePassword.setBounds(550, 625, 200, 32);
-        TManagePassword.setBounds(550,650, 200, 30);
+        BManageDelete.setBounds(550, 650, 200, 42);
+        DManagePassword.setBounds(550, 560, 200, 32);
+        TManagePassword.setBounds(550,600, 200, 30);
+        BManageDeleteAll.setBounds(550,700,200,42);
         BackBtn.setBounds(5, 35, 80, 25);
     }
 
@@ -112,6 +118,7 @@ public class CreateNewDatabaseWindow extends Frame implements ActionListener {
         add(DManagePassword);
         add(TManagePassword);
         add(BackBtn);
+        add(BManageDeleteAll);
     }
 
     private void setDefaults() {
@@ -158,10 +165,28 @@ public class CreateNewDatabaseWindow extends Frame implements ActionListener {
             }
          }
 
+        if(action.equals("DELETEALL")){
+            if(!(TManagePassword.getText().trim().equals("1970-01-01"))){
+                new DialogManager("WRITE PASSWORD \"`1970-01-01`\" TO PROCEED ", this, 10000);
+            }
+            try {
+                    deleteAllDatabase(TManagePassword.getText());
+                    DManageArea.setText(logindb.selectAll());
+                    TManagePassword.setText("");
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+
         if(action.equals("BACK")){
             setVisible(false);
             dispose();
         }
+    }
+
+    private void deleteAllDatabase(String password) throws SQLException {
+        int e = logindb.deleteAllData(password);
+        System.out.println("Successfully deleted " + e + " tables");
     }
 
     private void deleteDatabase(String password) throws SQLException {
@@ -192,6 +217,7 @@ public class CreateNewDatabaseWindow extends Frame implements ActionListener {
         BManageDelete.setVisible(true);
         DManagePassword.setVisible(true);
         TManagePassword.setVisible(true);
+        BManageDeleteAll.setVisible(true);
     }
 
     private void databaseCreation(String username, String password) throws SQLException {

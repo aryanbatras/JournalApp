@@ -11,12 +11,15 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.io.IOException;
 import java.sql.SQLException;
 
-public class JournalApp extends Frame implements ActionListener {
+public class JournalApp extends Frame implements ActionListener, KeyListener {
     TextArea BigTextArea;
-    Button BSave, PPlus, PDelete;
-    Panel PSidebar, JournalEntryPanel;
+    Button BSave, PPlus, PDelete, BLogout;
+    Panel PSidebar, JournalEntryPanel, PBottom;
     GridBagConstraints GridConstraints;
     Font JournalFont, ButtonFont;
 
@@ -24,30 +27,41 @@ public class JournalApp extends Frame implements ActionListener {
     int entryCounter, currentCounter;
     DatabaseManager db;
 
+    boolean keyLock;
+
     JournalApp(String username) throws SQLException {
         db = new DatabaseManager(username);
         SetDefaults(username);
         InitializeComponents();
         ActionListeners();
+        KeyListeners();
         entryCounter = 1;
+        keyLock = false;
 
         totalEntries = db.CountTotal();
-        checkJournalEntry();
+        checkJournalEntry("SAVE");
 
         for (int i = 0; i < totalEntries; i++) {
             addJournalEntry(entryCounter);
             entryCounter++;
         }
+
+
     }
 
-    private void checkJournalEntry(){
+    private void setVisibleComponents() {
+    }
+
+
+    private int checkJournalEntry(String action){
+
         if(totalEntries == 0){
             BigTextArea.setText("Create a New Note. . .");
             BigTextArea.setEditable(false);
             BigTextArea.setFocusable(false);
             BSave.setEnabled(false);
             PDelete.setEnabled(false);
-        } else if(currentCounter == 0){
+        } else if(currentCounter == 0 || action.equals("ADD") && keyLock == false) {
             BigTextArea.setText("Select a note");
             BigTextArea.setEditable(false);
             BigTextArea.setFocusable(false);
@@ -58,6 +72,12 @@ public class JournalApp extends Frame implements ActionListener {
             BigTextArea.setFocusable(true);
             BSave.setEnabled(true);
             PDelete.setEnabled(true);
+        }
+
+        if (keyLock) {
+            return 1;
+        } else {
+            return 0;
         }
 
     }
@@ -71,6 +91,7 @@ public class JournalApp extends Frame implements ActionListener {
     private void addFonts() {
         BigTextArea.setFont(JournalFont);
         BSave.setFont(ButtonFont);
+        BLogout.setFont(ButtonFont);
     }
 
     private void InitializeComponents() {
@@ -84,14 +105,20 @@ public class JournalApp extends Frame implements ActionListener {
         JournalEntryPanel = new Panel(new GridBagLayout());
         GridConstraints = new GridBagConstraints();
 
+        PBottom = new Panel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        BLogout = new Button("Logout");
+
         addComponents();
         setFonts();
     }
 
     private void addComponents() {
         add(BigTextArea, BorderLayout.CENTER);
-        add(BSave, BorderLayout.SOUTH);
+        add(PBottom, BorderLayout.SOUTH);
         add(PSidebar, BorderLayout.EAST);
+
+        PBottom.add(BSave);
+        PBottom.add(BLogout);
 
         PSidebar.add(PPlus, BorderLayout.NORTH);
         PSidebar.add(JournalEntryPanel, BorderLayout.CENTER);
@@ -106,10 +133,15 @@ public class JournalApp extends Frame implements ActionListener {
             @Override
             public void actionPerformed(ActionEvent ae) {
                 try {
-                    String StoredContent = db.SelectData(e);
-                    BigTextArea.setText(StoredContent);
-                    currentCounter = e;
-                    checkJournalEntry();
+                    int lock = checkJournalEntry("CLICK");
+                    if(lock == 0){
+                        String StoredContent = db.SelectData(e);
+                        BigTextArea.setText(StoredContent);
+                        currentCounter = e;
+                        checkJournalEntry("CLICK");
+                    } else {
+                        new DialogManager("Please save the changes first !", JournalApp.this);
+                    }
                 } catch (SQLException ex) {
                     throw new RuntimeException(ex);
                 }
@@ -142,6 +174,8 @@ public class JournalApp extends Frame implements ActionListener {
         PPlus.setActionCommand("ADD");
         PDelete.addActionListener(this);
         PDelete.setActionCommand("DELETE");
+        BLogout.addActionListener(this);
+        BLogout.setActionCommand("LOGOUT");
     }
 
     @Override
@@ -152,31 +186,57 @@ public class JournalApp extends Frame implements ActionListener {
         try {
             if (error == 0) {
                 if(BigTextArea.getText().equals("Create a New Note. . .")){
-                    BigTextArea.setText("Type something...");
+                    BigTextArea.setText(" ");
                 }
 
                 switch (action) {
                     case "SAVE":
                         db.UpdateData(currentCounter, BigTextArea.getText());
+                        keyLock = false;
                         break;
                     case "ADD":
-                        db.InsertValue(entryCounter, BigTextArea.getText());
-                        addJournalEntry(entryCounter++);
+                        if(keyLock == false){
+                            db.InsertValue(entryCounter, "Type Something...");
+                            addJournalEntry(entryCounter++);
+                        } else {
+                            new DialogManager("Please save the changes first !", JournalApp.this);
+                        }
                         break;
                     case "DELETE":
-                        db.DeleteData(currentCounter);
-                        deleteJournalEntry(--entryCounter);
+                        if(keyLock == false){
+                            db.DeleteData(currentCounter);
+                            deleteJournalEntry(--entryCounter);
+                        } else{
+                            new DialogManager("Please save the changes first !", JournalApp.this);
+                        }
                         break;
                     default:
                         break;
                 }
                 totalEntries = db.CountTotal();
-                checkJournalEntry();
+                checkJournalEntry(action);
             }
         } catch (SQLException ex){
             throw new RuntimeException(ex);
         }
 
+        if(action.equals("LOGOUT")){
+            try {
+                logout();
+            } catch (SQLException ex) {
+                throw new RuntimeException(ex);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+
+    }
+
+    private void logout() throws SQLException, IOException {
+        setVisible(false);
+        dispose();
+
+        new MainWindow();
     }
 
     private void deleteJournalEntry(int e) {
@@ -195,4 +255,17 @@ public class JournalApp extends Frame implements ActionListener {
         }
         return 0;
     }
+
+    private void KeyListeners() {
+        BigTextArea.addKeyListener(this);
+    }
+    @Override
+    public void keyTyped(KeyEvent e) {
+        keyLock = true;
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {}
+    @Override
+    public void keyReleased(KeyEvent e) {}
 }
